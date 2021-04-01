@@ -17,16 +17,19 @@ import com.cursojava.voicerecorder.utils.ExternalStorageUtil;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
     private ImageView micImage;
     private TextView recordingMsg;
+
     private boolean isRecording;
     private String folderToSaveTheAudio;
 
     private final int AUDIO_PERMISSION_CODE = 200;
     private final int STORAGE_PERMISSIONS_CODE = 201;
+
     private String[] audioPermission = {
             Manifest.permission.RECORD_AUDIO
     };
@@ -139,10 +142,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startRecording() {
+        String fileName = new Date().toLocaleString();
+
         recorder = new MediaRecorder();
         recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        recorder.setOutputFile(folderToSaveTheAudio + "/primeiragravacao.mp4");
+        recorder.setOutputFile(folderToSaveTheAudio + fileName);
         recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
         try {
@@ -152,12 +157,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         recorder.start();
+        recordingMsg.setText(fileName);
     }
 
     private void stopRecording() {
         recorder.stop();
         recorder.release();
         recorder = null;
-        System.out.println("PARANDO...");
     }
 }
