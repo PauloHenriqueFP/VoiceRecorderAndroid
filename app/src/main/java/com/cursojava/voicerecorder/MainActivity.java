@@ -1,6 +1,8 @@
 package com.cursojava.voicerecorder;
 
 import android.Manifest;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.media.MediaRecorder;
 import android.os.Bundle;
@@ -13,7 +15,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.cursojava.voicerecorder.services.ForegroundRecorderService;
+import com.cursojava.voicerecorder.utils.Constants;
 import com.cursojava.voicerecorder.utils.ExternalStorageUtil;
+import com.cursojava.voicerecorder.utils.SharedPreferenceUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,8 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageView micImage;
     private TextView recordingMsg;
 
-    private boolean isRecording;
-    private String folderToSaveTheAudio;
+    private SharedPreferences sp = SharedPreferenceUtil.getSharedPreferences();
 
     private final int AUDIO_PERMISSION_CODE = 200;
     private final int STORAGE_PERMISSIONS_CODE = 201;
@@ -38,40 +42,45 @@ public class MainActivity extends AppCompatActivity {
             Manifest.permission.READ_EXTERNAL_STORAGE
     };
 
-    // Recording
-    private MediaRecorder recorder;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        isRecording = false;
 
         micImage = findViewById(R.id.microphone_img);
         recordingMsg = findViewById(R.id.recording_msg);
+
+        setMicImage(sp.getBoolean(Constants.IS_RECORDING, false));
 
         micImage.setOnClickListener(v -> onClickMic());
 
         if (!isPermissionToStorage()) {
             requestPermissionToUseStorage();
-        } else {
-            initfolderToSaveTheAudio();
         }
     }
 
     private void onClickMic() {
-        if (isPermissionToRecord() && isPermissionToStorage() && folderToSaveTheAudio != null) {
+        if (isPermissionToRecord() && isPermissionToStorage()) {
+            boolean isRecording = sp.getBoolean(Constants.IS_RECORDING, false);
             if (isRecording) {
                 isRecording = false;
-                micImage.setImageResource(R.drawable.microphone_off);
-                stopRecording();
+                setMicImage(isRecording);
+                stopRecordingService();
             } else {
                 isRecording = true;
-                micImage.setImageResource(R.drawable.microphone_on);
-                startRecording();
+                setMicImage(isRecording);
+                startRecordingService();
             }
         } else {
             requestPermissionToRecord();
+        }
+    }
+
+    public void setMicImage(boolean isRecording) {
+        if (isRecording) {
+            micImage.setImageResource(R.drawable.microphone_on);
+        } else {
+            micImage.setImageResource(R.drawable.microphone_off);
         }
     }
 
@@ -82,7 +91,6 @@ public class MainActivity extends AppCompatActivity {
                 STORAGE_PERMISSIONS_CODE
         );
     }
-
 
     private void requestPermissionToRecord() {
         ActivityCompat.requestPermissions(
@@ -113,56 +121,35 @@ public class MainActivity extends AppCompatActivity {
         ) == PackageManager.PERMISSION_GRANTED;
     }
 
+    private void startRecordingService() {
+        Intent recordingService = new Intent(this, ForegroundRecorderService.class);
+        startService(recordingService);
+    }
+
+    private void stopRecordingService() {
+        Intent recordingService = new Intent(this, ForegroundRecorderService.class);
+        stopService(recordingService);
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
 
         // AUDIO
         if (requestCode == AUDIO_PERMISSION_CODE && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             System.out.println("VOCE LIBEROU AUDIO");
-            startRecording();
+            startRecordingService();
         } else if (requestCode == AUDIO_PERMISSION_CODE && grantResults[0] == PackageManager.PERMISSION_DENIED){
             System.out.println("VOCE NAO LIBEROU AUDIO");
         }
 
         // STORAGE
         if (requestCode == STORAGE_PERMISSIONS_CODE && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            initfolderToSaveTheAudio();
+            System.out.println("STORAGE LIBERADO");
         } else if (requestCode == STORAGE_PERMISSIONS_CODE && grantResults[0] == PackageManager.PERMISSION_DENIED){
             System.out.println("VOCE NAO LIBEROU STORAGE");
             // Ask again
             requestPermissionToUseStorage();
         }
 
-    }
-
-    private void initfolderToSaveTheAudio() {
-        // the absolute path to application-specific directory.
-        // May return null if shared storage is not currently available.
-        folderToSaveTheAudio = ExternalStorageUtil.getPrivateExternalStorageBaseDir(getApplicationContext());
-    }
-
-    private void startRecording() {
-        String fileName = new Date().toLocaleString();
-
-        recorder = new MediaRecorder();
-        recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        recorder.setOutputFile(folderToSaveTheAudio + fileName);
-        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-
-        try {
-            recorder.prepare();
-        } catch (IOException e) {
-            System.out.println("PREPARE FAILED" + e.getMessage());
-        }
-
-        recorder.start();
-        recordingMsg.setText(fileName);
-    }
-
-    private void stopRecording() {
-        recorder.stop();
-        recorder.release();
-        recorder = null;
     }
 }
