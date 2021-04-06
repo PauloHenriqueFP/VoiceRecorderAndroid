@@ -7,6 +7,8 @@ import android.content.pm.PackageManager;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.SystemClock;
+import android.widget.Chronometer;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -28,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ImageView micImage;
     private TextView recordingMsg;
+    private Chronometer timer;
 
     private SharedPreferences sp = SharedPreferenceUtil.getSharedPreferences();
 
@@ -49,14 +52,20 @@ public class MainActivity extends AppCompatActivity {
 
         micImage = findViewById(R.id.microphone_img);
         recordingMsg = findViewById(R.id.recording_msg);
+        timer = findViewById(R.id.timer);
 
-        setMicImage(sp.getBoolean(Constants.IS_RECORDING, false));
 
         micImage.setOnClickListener(v -> onClickMic());
 
         if (!isPermissionToStorage()) {
             requestPermissionToUseStorage();
         }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        setMicImage(sp.getBoolean(Constants.IS_RECORDING, false));
     }
 
     private void onClickMic() {
@@ -79,8 +88,10 @@ public class MainActivity extends AppCompatActivity {
     public void setMicImage(boolean isRecording) {
         if (isRecording) {
             micImage.setImageResource(R.drawable.microphone_on);
+            recordingMsg.setText("Recording . . .");
         } else {
             micImage.setImageResource(R.drawable.microphone_off);
+            recordingMsg.setText("Tap the mic to start recording your voice");
         }
     }
 
@@ -122,11 +133,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startRecordingService() {
+        timer.setBase(SystemClock.elapsedRealtime());
+        timer.start();
         Intent recordingService = new Intent(this, ForegroundRecorderService.class);
         startService(recordingService);
     }
 
     private void stopRecordingService() {
+        timer.stop();
         Intent recordingService = new Intent(this, ForegroundRecorderService.class);
         stopService(recordingService);
     }
